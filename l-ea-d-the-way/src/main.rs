@@ -10,7 +10,7 @@ fn main() {
 
     let rmt_channel = peripherals.rmt.channel0;
     let rmt_pin = peripherals.pins.gpio20;
-    let rmt_config = TxRmtConfig::new().clock_divider(20); //240MHz -> 20MHz, 50ns/tick
+    let rmt_config = TxRmtConfig::new().clock_divider(12); //240MHz -> 20MHz, 50ns/tick
 
     let tx_rmt = TxRmtDriver::new(rmt_channel, rmt_pin, &rmt_config)?;
 
@@ -18,12 +18,12 @@ fn main() {
 
     let time = Instant::now()/1000;
 
-
+    //rainbow function
     for led_addr in 0..180 {
         leds[led_addr].set(
-                ((time + led_addr )%PI).sin(),
-                ((time + PI*2/3 + led_addr)%PI).sin(),
-                ((time + PI*4/3 + led_addr)%PI).sin());
+                ((time + led_addr )%(2*PI)).sin(),
+                ((time + PI*2/3 + led_addr)%(2*PI)).sin(),
+                ((time + PI*4/3 + led_addr)%(2*PI)).sin());
     }
 
     tx_rmt.start(led_data<180>(&leds));
@@ -33,12 +33,14 @@ fn main() {
 }
 
 fn led_data<const S: usize>(led_colors: [RGB; S]) -> FixedLengthSignal {
+    //0.4 us H, 0.85 us L
     let low_signal = (Pulse::new(PinState::High, PulseTicks::new(8)?), Pulse::new(PinState::Low, PulseTicks::new(17)?));
+    //0.85 us H, 0.4 us L
     let high_signal = (Pulse::new(PinState::High, PulseTicks::new(17)?), Pulse::new(PinState::Low, PulseTicks::new(8)?));
 
     let mut signal = FixedLengthSignal::<24>::new();
     for n in 0..S{
-        for b in 0..24{
+        for b in (0..24).rev() {
             signal.set(n, if(led_colors[n].data & (1 << b)){&high_signal}else{&low_signal});
         }
     }
@@ -46,6 +48,7 @@ fn led_data<const S: usize>(led_colors: [RGB; S]) -> FixedLengthSignal {
 }
 
 struct RGB{
+    //24 bit GRB format
     data: u32
 }
 
